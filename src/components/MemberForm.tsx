@@ -5,6 +5,8 @@ import { useI18n } from '@/context/I18nContext';
 import { getPersons, createPerson, updatePerson, getPerson, createSpouse } from '@/services/family';
 import type { Person, PersonInput, Gender, LifeStatus, ChildrenStatus, BranchStatus } from '@/types';
 import { displayName } from '@/utils/person';
+import { ReactTransliterate } from 'react-transliterate';
+import 'react-transliterate/dist/index.css';
 
 interface Props {
   editingId?: string;
@@ -200,7 +202,14 @@ export function MemberForm({ editingId }: Props) {
           <div className="grid gap-4 sm:grid-cols-2">
             <div>
               <label className={labelClass}>{t('firstNameHi')}</label>
-              <input className={inputClass} value={form.first_name_hi ?? ''} onChange={(e) => update('first_name_hi', e.target.value)} dir="auto" />
+              <ReactTransliterate
+                value={form.first_name_hi ?? ''}
+                onChangeText={(text) => update('first_name_hi', text)}
+                lang="hi"
+                className={inputClass}
+                containerClassName="w-full"
+                placeholder="Type in English..."
+              />
             </div>
             <div>
               <label className={labelClass}>{t('gender')}</label>
@@ -246,7 +255,14 @@ export function MemberForm({ editingId }: Props) {
               <div className="grid gap-4 sm:grid-cols-2">
                 <div>
                   <label className={labelClass}>{t('firstNameHi')}</label>
-                  <input className={inputClass} value={spouseForm.first_name_hi} onChange={(e) => updateSpouse('first_name_hi', e.target.value)} dir="auto" />
+                  <ReactTransliterate
+                    value={spouseForm.first_name_hi ?? ''}
+                    onChangeText={(text) => updateSpouse('first_name_hi', text)}
+                    lang="hi"
+                    className={inputClass}
+                    containerClassName="w-full"
+                    placeholder="Type in English..."
+                  />
                 </div>
                 <div>
                   <label className={labelClass}>{t('gender')}</label>
