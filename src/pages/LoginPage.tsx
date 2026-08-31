@@ -17,7 +17,14 @@ export function LoginPage() {
     e.preventDefault();
     setError(null);
     setLoading(true);
-    const { error: signInError } = await signIn(email.trim(), password);
+    
+    const loginIdentifier = email.trim();
+    // If the user entered a name (no @ symbol), automatically append a dummy domain
+    const formattedEmail = loginIdentifier.includes('@') 
+      ? loginIdentifier 
+      : `${loginIdentifier}@gmail.com`;
+
+    const { error: signInError } = await signIn(formattedEmail, password);
     setLoading(false);
     if (signInError) {
       setError(signInError);
@@ -45,16 +52,16 @@ export function LoginPage() {
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label className="mb-1.5 block text-sm font-medium text-stone-700">{t('email')}</label>
+              <label className="mb-1.5 block text-sm font-medium text-stone-700">{t('emailOrName')}</label>
               <div className="relative">
                 <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-stone-400" />
                 <input
-                  type="email"
+                  type="text"
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   className="w-full rounded-lg border border-stone-300 pl-10 pr-3 py-2.5 text-sm focus:border-amber-600 focus:outline-none focus:ring-2 focus:ring-amber-600/20"
-                  placeholder="admin@family.com"
+                  placeholder="admin@family.com or Admin Name"
                 />
               </div>
             </div>
