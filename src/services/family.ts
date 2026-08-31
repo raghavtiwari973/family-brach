@@ -80,8 +80,12 @@ export async function getSpouses(personId: string): Promise<{ spouse: Person; ma
   if (!rels || rels.length === 0) return [];
 
   const results: { spouse: Person; marriage: Spouse }[] = [];
+  const seenSpouses = new Set<string>();
   for (const rel of rels as Spouse[]) {
     const spouseId = rel.person_one === personId ? rel.person_two : rel.person_one;
+    if (seenSpouses.has(spouseId)) continue;
+    seenSpouses.add(spouseId);
+    
     const { data: sp, error: spErr } = await supabase
       .from('persons')
       .select('*')

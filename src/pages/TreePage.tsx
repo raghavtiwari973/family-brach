@@ -24,7 +24,7 @@ import type { Person } from '@/types';
 
 const nodeTypes: NodeTypes = { person: PersonNode };
 
-const NODE_W = 200;
+const NODE_W = 240;
 const NODE_H = 130;
 const SIBLING_GAP = 230;
 const LEVEL_GAP = 210;
@@ -36,7 +36,7 @@ interface LoadedNode {
   childrenCount: number;
   x: number;
   y: number;
-  partnerId?: string;
+  spouses?: Person[];
 }
 
 function TreeView() {
@@ -113,19 +113,7 @@ function TreeView() {
         ln.hasChildren = children.length > 0 || ln.person.children_status === 'has_children';
 
         const spouses = await getSpouses(id);
-        spouses.forEach(({ spouse }) => {
-          if (!loadedRef.current.has(spouse.id)) {
-            loadedRef.current.set(spouse.id, {
-              person: spouse,
-              childrenExpanded: false,
-              hasChildren: false,
-              childrenCount: 0,
-              x: 0,
-              y: 0,
-              partnerId: id,
-            });
-          }
-        });
+        ln.spouses = spouses.map(s => s.spouse);
       } catch (e) {
         ln.childrenExpanded = false;
         setError((e as Error).message);
@@ -144,45 +132,53 @@ function TreeView() {
     }
 
     const g = new dagre.graphlib.Graph();
-    g.setGraph({ rankdir: 'TB', nodesep: 100, ranksep: 150 });
+    g.setGraph({ rankdir: 'BT', nodesep: 100, ranksep: 150 });
     g.setDefaultEdgeLabel(() => ({}));
-
-    // Find who has a spouse to allocate width
-    const spousesByPartner = new Map<string, string>();
-    map.forEach((ln, id) => {
-      if (ln.partnerId && map.has(ln.partnerId)) {
-        spousesByPartner.set(ln.partnerId, id);
-      }
-    });
 
     // Add nodes to dagre
     map.forEach((ln, id) => {
-      if (ln.partnerId) return; // Do not add spouses to dagre, we'll position them manually
-      
-      const hasSpouse = spousesByPartner.has(id);
       g.setNode(id, { 
-        width: hasSpouse ? NODE_W * 2 + 50 : NODE_W, 
+        width: NODE_W, 
         height: NODE_H 
       });
     });
 
     // Build edges
     const newEdges: Edge[] = [];
-    map.forEach((ln) => {
-      if (ln.partnerId) return; // Spouses don't have structural tree edges pointing from parents
+    map.forEach((ln, targetId) => {
+      const peopleInNode = [ln.person, ...(ln.spouses || [])];
       
-      const p = ln.person;
-      const parentId = p.father_id && map.has(p.father_id) ? p.father_id : p.mother_id && map.has(p.mother_id) ? p.mother_id : null;
-      if (parentId) {
-        g.setEdge(parentId, p.id);
-        newEdges.push({
-          id: `e-${parentId}-${p.id}`,
-          source: parentId,
-          target: p.id,
-          type: 'bezier', // Smooth curve like a branch
-          style: { stroke: '#78350f', strokeWidth: 5 }, // Amber-900 wood color, thick stroke
-        });
-      }
+      peopleInNode.forEach((p) => {
+        let parentId = null;
+        if (p.father_id && map.has(p.father_id)) parentId = p.father_id;
+        else if (p.mother_id && map.has(p.mother_id)) parentId = p.mother_id;
+        else {
+          // If parent node was hidden (deduplicated spouse), find the primary node holding them
+          const missingParent = p.father_id || p.mother_id;
+          if (missingParent) {
+            for (const [id, node] of map.entries()) {
+              if (node.spouses?.some(s => s.id === missingParent)) {
+                parentId = id;
+                break;
+              }
+            }
+          }
+        }
+
+        if (parentId) {
+          const edgeId = `e-${parentId}-${targetId}`;
+          if (!newEdges.some(e => e.id === edgeId)) {
+            g.setEdge(parentId, targetId);
+            newEdges.push({
+              id: edgeId,
+              source: parentId,
+              target: targetId,
+              type: 'bezier',
+              style: { stroke: '#78350f', strokeWidth: 5 },
+            });
+          }
+        }
+      });
     });
 
     dagre.layout(g);
@@ -190,23 +186,9 @@ function TreeView() {
     // Build React Flow nodes
     const newNodes: Node<PersonNodeData>[] = [];
     map.forEach((ln, id) => {
-      let x = 0;
-      let y = 0;
-
-      if (ln.partnerId && map.has(ln.partnerId)) {
-        // Position spouse next to partner
-        const pNode = g.node(ln.partnerId);
-        x = pNode.x - pNode.width / 2 + NODE_W / 2 + NODE_W + 50;
-        y = pNode.y - pNode.height / 2;
-      } else {
-        // Main node
-        const dNode = g.node(id);
-        x = dNode.x - dNode.width / 2 + NODE_W / 2;
-        y = dNode.y - dNode.height / 2;
-      }
-
-      ln.x = x;
-      ln.y = y;
+      const dNode = g.node(id);
+      ln.x = dNode.x - dNode.width / 2 + NODE_W / 2;
+      ln.y = dNode.y - dNode.height / 2;
 
       newNodes.push({
         id: ln.person.id,
@@ -224,7 +206,7 @@ function TreeView() {
           isSelected: selectedId === ln.person.id,
           onToggleChildren: handleToggleChildren,
           onSelect: handleSelect,
-          isSpouse: !!ln.partnerId,
+          spouses: ln.spouses,
         },
       });
     });
@@ -233,31 +215,20 @@ function TreeView() {
     setEdges(newEdges);
   }, [lang, t, focusedId, selectedId, handleToggleChildren, handleSelect, setNodes, setEdges]);
 
-  // Initial load: root + children + spouses
+  // Initial load: all persons + spouses
   useEffect(() => {
+    if (focusId) return;
     let cancelled = false;
     (async () => {
       setLoading(true);
       setError(null);
       try {
-        const root = await getRootAncestor();
+        const { getPersons } = await import('@/services/family');
+        const allPersons = await getPersons(1000);
         if (cancelled) return;
-        if (!root) {
-          setLoading(false);
-          return;
-        }
+        
         loadedRef.current.clear();
-        loadedRef.current.set(root.id, {
-          person: root,
-          childrenExpanded: true,
-          hasChildren: false,
-          childrenCount: 0,
-          x: 0,
-          y: 0,
-        });
-
-        const descendants = await getDescendants(root.id);
-        descendants.forEach(({ person: c }: { person: Person }) => {
+        allPersons.forEach((c) => {
           loadedRef.current.set(c.id, {
             person: c,
             childrenExpanded: true,
@@ -285,22 +256,33 @@ function TreeView() {
         const spousesResults = await Promise.all(allIds.map(id => getSpouses(id).then(sp => ({ id, sp }))));
         
         spousesResults.forEach(({ id, sp }) => {
-          sp.forEach(({ spouse }) => {
-            if (!loadedRef.current.has(spouse.id)) {
-              loadedRef.current.set(spouse.id, {
-                person: spouse,
-                childrenExpanded: false,
-                hasChildren: false,
-                childrenCount: 0,
-                x: 0,
-                y: 0,
-                partnerId: id,
-              });
-            }
-          });
+          if (sp.length > 0) {
+            const ln = loadedRef.current.get(id);
+            if (ln) ln.spouses = sp.map(s => s.spouse);
+          }
         });
-        const rootLn = loadedRef.current.get(root.id)!;
-        rootLn.childrenExpanded = true;
+
+        // DEDUPLICATE SPOUSE NODES
+        const toRemove = new Set<string>();
+        loadedRef.current.forEach((ln, id) => {
+          if (toRemove.has(id)) return;
+          if (ln.spouses && ln.spouses.length > 0) {
+            ln.spouses.forEach(spouse => {
+              if (toRemove.has(spouse.id)) return;
+              if (!loadedRef.current.has(spouse.id)) return;
+              
+              const p1 = ln.person;
+              const p2 = spouse;
+              const g1 = p1.gender || 'unknown';
+              const g2 = p2.gender || 'unknown';
+              
+              if (g1 === 'male' && g2 !== 'male') toRemove.add(p2.id);
+              else if (g2 === 'male' && g1 !== 'male') toRemove.add(p1.id);
+              else toRemove.add(p1.id < p2.id ? p2.id : p1.id);
+            });
+          }
+        });
+        toRemove.forEach(id => loadedRef.current.delete(id));
 
         renderTree();
         setLoading(false);
@@ -327,94 +309,76 @@ function TreeView() {
     if (!focusId) return;
     let cancelled = false;
     (async () => {
+      setLoading(true);
       try {
-        const person = await getPerson(focusId);
-        if (!person || cancelled) return;
+        const { getPersons, getPerson } = await import('@/services/family');
+        const [allPersons, person] = await Promise.all([
+          getPersons(1000),
+          getPerson(focusId)
+        ]);
+        
+        if (cancelled || !person) return;
 
-        // Load ancestor chain to ensure path is visible
-        const ancestorIds: string[] = [];
-        let current: Person | null = person;
-        const seen = new Set<string>();
-        while (current && !seen.has(current.id)) {
-          seen.add(current.id);
-          const parentId = current.father_id ?? current.mother_id;
-          if (parentId) {
-            const parent = await getPerson(parentId);
-            if (parent) {
-              ancestorIds.unshift(parent.id);
-              current = parent;
-            } else break;
-          } else break;
-        }
-
-        for (const aid of ancestorIds) {
-          if (!loadedRef.current.has(aid)) {
-            const p = await getPerson(aid);
-            if (p) {
-              loadedRef.current.set(aid, {
-                person: p,
-                childrenExpanded: false,
-                hasChildren: p.children_status === 'has_children',
-                childrenCount: 0,
-                x: 0,
-                y: 0,
-              });
-            }
-          }
-          const ln = loadedRef.current.get(aid);
-          if (ln && !ln.childrenExpanded) {
-            ln.childrenExpanded = true;
-            const kids = await getChildren(aid);
-            kids.forEach((k) => {
-              if (!loadedRef.current.has(k.id)) {
-                loadedRef.current.set(k.id, {
-                  person: k,
-                  childrenExpanded: false,
-                  hasChildren: k.children_status === 'has_children',
-                  childrenCount: 0,
-                  x: 0,
-                  y: 0,
-                });
-              }
-            });
-            ln.childrenCount = kids.length;
-          }
-        }
-
-        if (!loadedRef.current.has(person.id)) {
-          loadedRef.current.set(person.id, {
-            person,
-            childrenExpanded: false,
-            hasChildren: person.children_status === 'has_children',
+        loadedRef.current.clear();
+        allPersons.forEach((c) => {
+          loadedRef.current.set(c.id, {
+            person: c,
+            childrenExpanded: true,
+            hasChildren: false,
             childrenCount: 0,
             x: 0,
             y: 0,
           });
-        }
+        });
 
-        const fLn = loadedRef.current.get(person.id)!;
-        if (!fLn.childrenExpanded) {
-          fLn.childrenExpanded = true;
-          const kids = await getChildren(person.id);
-          kids.forEach((k) => {
-            if (!loadedRef.current.has(k.id)) {
-              loadedRef.current.set(k.id, {
-                person: k,
-                childrenExpanded: false,
-                hasChildren: k.children_status === 'has_children',
-                childrenCount: 0,
-                x: 0,
-                y: 0,
-              });
-            }
+        // Calculate accurate children counts
+        loadedRef.current.forEach((ln, id) => {
+          let count = 0;
+          loadedRef.current.forEach((childLn) => {
+            if (childLn.person.father_id === id || childLn.person.mother_id === id) count++;
           });
-          fLn.childrenCount = kids.length;
-        }
+          ln.childrenCount = count;
+          if (count > 0) ln.hasChildren = true;
+        });
+
+        // Fetch spouses for everyone loaded
+        const allIds = Array.from(loadedRef.current.keys());
+        const spousesResults = await Promise.all(allIds.map(id => getSpouses(id).then(sp => ({ id, sp }))));
+        spousesResults.forEach(({ id, sp }) => {
+          if (sp.length > 0) {
+            const ln = loadedRef.current.get(id);
+            if (ln) ln.spouses = sp.map(s => s.spouse);
+          }
+        });
+
+        // DEDUPLICATE SPOUSE NODES
+        // If a couple is married, we only render ONE main card. The spouse is rendered inside it.
+        const toRemove = new Set<string>();
+        loadedRef.current.forEach((ln, id) => {
+          if (toRemove.has(id)) return;
+          if (ln.spouses && ln.spouses.length > 0) {
+            ln.spouses.forEach(spouse => {
+              if (toRemove.has(spouse.id)) return;
+              if (!loadedRef.current.has(spouse.id)) return;
+              
+              const p1 = ln.person;
+              const p2 = spouse;
+              const g1 = p1.gender || 'unknown';
+              const g2 = p2.gender || 'unknown';
+              
+              if (g1 === 'male' && g2 !== 'male') toRemove.add(p2.id);
+              else if (g2 === 'male' && g1 !== 'male') toRemove.add(p1.id);
+              else toRemove.add(p1.id < p2.id ? p2.id : p1.id);
+            });
+          }
+        });
+        toRemove.forEach(id => loadedRef.current.delete(id));
 
         setFocusedId(person.id);
         setSelectedId(person.id);
         setSelectedPerson(person);
         renderTree();
+        setLoading(false);
 
         setTimeout(() => {
           const node = getNode(person.id);
@@ -428,7 +392,10 @@ function TreeView() {
 
         setSearchParams({}, { replace: true });
       } catch (e) {
-        if (!cancelled) setError((e as Error).message);
+        if (!cancelled) {
+          setError((e as Error).message);
+          setLoading(false);
+        }
       }
     })();
     return () => {

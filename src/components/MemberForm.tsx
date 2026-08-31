@@ -26,7 +26,7 @@ export function MemberForm({ editingId }: Props) {
     middle_name_hi: '',
     last_name_hi: '',
     nickname: '',
-    gender: null,
+    gender: 'male',
     date_of_birth: '',
     place_of_birth: '',
     date_of_death: '',
@@ -47,7 +47,8 @@ export function MemberForm({ editingId }: Props) {
     first_name_hi: '',
     middle_name_hi: '',
     last_name_hi: '',
-    gender: null as Gender | null,
+    gender: 'female' as Gender | null,
+    life_status: 'alive' as LifeStatus,
   });
 
   const [selectedSpouseId, setSelectedSpouseId] = useState<string | 'new'>('');
@@ -139,7 +140,7 @@ export function MemberForm({ editingId }: Props) {
             middle_name_hi: spouseForm.middle_name_hi || null,
             last_name_hi: spouseForm.last_name_hi || null,
             gender: spouseForm.gender,
-            life_status: 'alive',
+            life_status: spouseForm.life_status,
             children_status: 'unknown',
             branch_status: 'unknown',
           };
@@ -196,10 +197,25 @@ export function MemberForm({ editingId }: Props) {
         {/* Personal Info */}
         <div className={sectionClass}>
           <h2 className={sectionTitle}>{t('personalInfo')}</h2>
-          <div className="grid gap-4 sm:grid-cols-1">
+          <div className="grid gap-4 sm:grid-cols-2">
             <div>
               <label className={labelClass}>{t('firstNameHi')}</label>
               <input className={inputClass} value={form.first_name_hi ?? ''} onChange={(e) => update('first_name_hi', e.target.value)} dir="auto" />
+            </div>
+            <div>
+              <label className={labelClass}>{t('gender')}</label>
+              <select className={inputClass} value={form.gender ?? 'male'} onChange={(e) => update('gender', (e.target.value || null) as Gender | null)}>
+                <option value="male">{t('male')}</option>
+                <option value="female">{t('female')}</option>
+                <option value="other">{t('other')}</option>
+              </select>
+            </div>
+            <div>
+              <label className={labelClass}>{t('lifeStatus')}</label>
+              <select className={inputClass} value={form.life_status} onChange={(e) => update('life_status', e.target.value as LifeStatus)}>
+                <option value="alive">{t('alive')}</option>
+                <option value="deceased">{t('deceased')}</option>
+              </select>
             </div>
           </div>
         </div>
@@ -227,10 +243,25 @@ export function MemberForm({ editingId }: Props) {
 
           {selectedSpouseId === 'new' && (
             <>
-              <div className="grid gap-4 sm:grid-cols-1">
+              <div className="grid gap-4 sm:grid-cols-2">
                 <div>
                   <label className={labelClass}>{t('firstNameHi')}</label>
                   <input className={inputClass} value={spouseForm.first_name_hi} onChange={(e) => updateSpouse('first_name_hi', e.target.value)} dir="auto" />
+                </div>
+                <div>
+                  <label className={labelClass}>{t('gender')}</label>
+                  <select className={inputClass} value={spouseForm.gender ?? 'female'} onChange={(e) => updateSpouse('gender', (e.target.value || null) as Gender | null)}>
+                    <option value="male">{t('male')}</option>
+                    <option value="female">{t('female')}</option>
+                    <option value="other">{t('other')}</option>
+                  </select>
+                </div>
+                <div>
+                  <label className={labelClass}>{t('lifeStatus')}</label>
+                  <select className={inputClass} value={spouseForm.life_status} onChange={(e) => updateSpouse('life_status', e.target.value as LifeStatus)}>
+                    <option value="alive">{t('alive')}</option>
+                    <option value="deceased">{t('deceased')}</option>
+                  </select>
                 </div>
               </div>
             </>

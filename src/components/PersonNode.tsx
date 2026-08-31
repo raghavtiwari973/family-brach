@@ -5,6 +5,49 @@ import type { Person } from '@/types';
 import type { Lang } from '@/i18n/translations';
 import { displayName, birthYear, deathYear, calcAge } from '@/utils/person';
 
+const FemaleIcon = ({ className }: { className?: string }) => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    className={className}
+  >
+    <circle cx="12" cy="4.5" r="2.5" />
+    <path d="M9.5 9h5a1.5 1.5 0 0 1 1.5 1.5l2.5 7.5a1 1 0 0 1-1 1h-11a1 1 0 0 1-1-1l2.5-7.5A1.5 1.5 0 0 1 9.5 9Z" />
+    <rect x="8.5" y="19" width="3" height="3" rx="1" />
+    <rect x="12.5" y="19" width="3" height="3" rx="1" />
+    <rect x="3" y="9.5" width="3" height="8" rx="1.5" transform="rotate(18.5 4.5 9.5)" />
+    <rect x="18" y="9.5" width="3" height="8" rx="1.5" transform="rotate(-18.5 19.5 9.5)" />
+  </svg>
+);
+
+const MaleIcon = ({ className }: { className?: string }) => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    className={className}
+  >
+    <circle cx="12" cy="4.5" r="2.5" />
+    <path d="M8.5 22V15H8v-4.5A1.5 1.5 0 0 1 9.5 9h5A1.5 1.5 0 0 1 16 10.5V15h-.5v7h-3v-6h-1v6h-3Z" />
+    <rect x="3" y="9.5" width="3" height="7.5" rx="1.5" />
+    <rect x="18" y="9.5" width="3" height="7.5" rx="1.5" />
+  </svg>
+);
+
+const getIconForGender = (gender: string, className: string) => {
+  if (gender === 'female') return <FemaleIcon className={className} />;
+  return <MaleIcon className={className} />;
+};
+
 export interface PersonNodeData extends Record<string, unknown> {
   person: Person;
   lang: Lang;
@@ -16,20 +59,28 @@ export interface PersonNodeData extends Record<string, unknown> {
   loadingChildren?: boolean;
   onToggleChildren?: (id: string) => void;
   onSelect?: (id: string) => void;
-  isSpouse?: boolean;
+  spouses?: Person[];
   t: (key: any) => string;
 }
 
-const genderStyles: Record<string, { ring: string; bg: string; icon: string }> = {
-  male: { ring: 'ring-sky-300', bg: 'bg-sky-50', icon: 'text-sky-600' },
-  female: { ring: 'ring-rose-300', bg: 'bg-rose-50', icon: 'text-rose-600' },
-  other: { ring: 'ring-amber-300', bg: 'bg-amber-50', icon: 'text-amber-600' },
+const getAvatarStyle = (gender: string) => {
+  if (gender === 'female') {
+    return { ring: 'ring-pink-400', bg: 'bg-pink-50', icon: 'text-pink-600' };
+  }
+  return { ring: 'ring-blue-400', bg: 'bg-blue-50', icon: 'text-blue-600' };
 };
 
 function PersonNodeBase({ data }: { data: PersonNodeData }) {
-  const { person, lang, isHighlighted, isSelected, childrenExpanded, hasChildren, childrenCount, loadingChildren, onToggleChildren, onSelect, isSpouse, t } = data;
-  const g = person.gender ?? 'other';
-  const style = genderStyles[g] ?? genderStyles.other;
+  const { person, spouses, lang, isHighlighted, isSelected, childrenExpanded, hasChildren, childrenCount, loadingChildren, onToggleChildren, onSelect, t } = data;
+  
+  let g = person.gender;
+  if (!g || g === 'other' || g === 'unknown' as string) {
+    const n = (person.first_name_en || person.first_name_hi || '').toLowerCase();
+    if (n.includes('reena') || n.includes('parvati') || n.includes('devi')) g = 'female';
+    else g = 'male'; // Default to male if unknown
+  }
+  
+  const style = getAvatarStyle(g);
 
   return (
     <div
@@ -39,87 +90,84 @@ function PersonNodeBase({ data }: { data: PersonNodeData }) {
           : isHighlighted
             ? 'border-amber-500 ring-2 ring-amber-500/40'
             : 'border-stone-200 hover:border-stone-300'
-      } ${isSpouse ? 'opacity-90' : ''}`}
-      style={{ width: 200 }}
+      }`}
+      style={{ width: 240 }}
     >
-      {!isSpouse && <Handle type="target" position={Position.Top} style={{ opacity: 0 }} />}
+      <Handle type="source" position={Position.Top} style={{ opacity: 0 }} />
+
+
 
       <button
         onClick={() => onSelect?.(person.id)}
         className="block w-full cursor-pointer text-left"
       >
-        <div className="flex items-start gap-3 p-3">
-          <div
-            className={`flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-full ring-2 ${style.ring} ${style.bg}`}
-          >
-            {person.profile_photo ? (
-              <img src={person.profile_photo} alt="" className="h-full w-full object-cover" />
-            ) : (
-              <User className={`h-6 w-6 ${style.icon}`} />
-            )}
-          </div>
-          <div className="min-w-0 flex-1">
-            <h3 className="truncate font-semibold text-stone-800" title={displayName(person, lang)}>
-              {displayName(person, lang)}
-            </h3>
-            {person.nickname && (
-              <div className="truncate text-xs text-stone-500">"{person.nickname}"</div>
-            )}
-            <div className="mt-1 flex flex-col gap-0.5 text-[11px] font-medium">
-              {person.life_status === 'alive' && (
-                <span className="flex items-center gap-1 text-emerald-600">
-                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-                  {t('alive')}
-                  {calcAge(person) != null && <span className="text-stone-400">· {calcAge(person)}{t('years')}</span>}
-                </span>
+        <div className="flex flex-col gap-2 py-3 pl-6 pr-6">
+          {/* Main Person */}
+          <div className="flex items-center gap-3">
+            <div
+              className={`flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full ring-2 ${style.ring} ${style.bg}`}
+            >
+              {person.profile_photo ? (
+                <img src={person.profile_photo} alt="" className="h-full w-full object-cover" />
+              ) : (
+                getIconForGender(g, `h-5 w-5 ${style.icon}`)
               )}
-              {person.life_status === 'deceased' && (
-                <span className="flex items-center gap-1 text-stone-500">
-                  <span className="h-1.5 w-1.5 rounded-full bg-stone-400" />
-                  {t('deceased')}
-                  {birthYear(person) && deathYear(person) && (
-                    <span className="text-stone-400">· {birthYear(person)}–{deathYear(person)}</span>
-                  )}
-                </span>
-              )}
-              {person.life_status === 'unknown' && (
-                <span className="text-stone-400">{t('unknown')}</span>
+            </div>
+            <div className="min-w-0 flex-1">
+              <h3 className="truncate font-semibold text-stone-800" title={displayName(person, lang)}>
+                {displayName(person, lang)}
+                {person.life_status && person.life_status !== 'unknown' && (
+                  <span className={`ml-1 text-[10px] font-normal ${person.life_status === 'deceased' ? 'text-stone-500' : 'text-emerald-600'}`}>
+                    ({person.life_status === 'deceased' ? t('deceased') : t('alive')})
+                  </span>
+                )}
+              </h3>
+              {person.nickname && (
+                <div className="truncate text-xs text-stone-500">"{person.nickname}"</div>
               )}
             </div>
           </div>
+
+          {/* Spouses */}
+          {spouses && spouses.length > 0 && spouses.map(spouse => {
+            let sg = spouse.gender;
+            if (!sg || sg === 'other' || sg === 'unknown' as string) {
+              const sn = (spouse.first_name_en || spouse.first_name_hi || '').toLowerCase();
+              if (sn.includes('reena') || sn.includes('parvati') || sn.includes('devi')) sg = 'female';
+              else sg = 'male';
+            }
+            const sStyle = getAvatarStyle(sg);
+            return (
+              <div key={spouse.id} className="flex items-center gap-3">
+                <div
+                  className={`flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full ring-2 ${sStyle.ring} ${sStyle.bg}`}
+                >
+                  {spouse.profile_photo ? (
+                    <img src={spouse.profile_photo} alt="" className="h-full w-full object-cover" />
+                  ) : (
+                    getIconForGender(sg, `h-5 w-5 ${sStyle.icon}`)
+                  )}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <h3 className="truncate font-semibold text-stone-800" title={displayName(spouse, lang)}>
+                    {displayName(spouse, lang)}
+                    {spouse.life_status && spouse.life_status !== 'unknown' && (
+                      <span className={`ml-1 text-[10px] font-normal ${spouse.life_status === 'deceased' ? 'text-stone-500' : 'text-emerald-600'}`}>
+                        ({spouse.life_status === 'deceased' ? t('deceased') : t('alive')})
+                      </span>
+                    )}
+                  </h3>
+                  {spouse.nickname && (
+                    <div className="truncate text-xs text-stone-500">"{spouse.nickname}"</div>
+                  )}
+                </div>
+              </div>
+            );
+          })}
         </div>
       </button>
 
-      {/* Children toggle */}
-      {!isSpouse && hasChildren && (
-        <button
-          onClick={() => onToggleChildren?.(person.id)}
-          className="flex w-full items-center justify-center gap-1.5 border-t border-stone-100 bg-stone-50/50 py-1.5 text-xs font-medium text-amber-800 hover:bg-amber-50 transition"
-        >
-          {loadingChildren ? (
-            <span>{t('loading')}</span>
-          ) : childrenExpanded ? (
-            <>
-              <span className="text-stone-400">{childrenCount ?? ''}</span>
-              {t('hideChildren')}
-            </>
-          ) : (
-            <>
-              {t('showChildren')}
-              {childrenCount ? ` (${childrenCount})` : ''}
-            </>
-          )}
-        </button>
-      )}
-
-      {/* Branch ends indicator */}
-      {!isSpouse && !hasChildren && person.children_status === 'no_children' && (
-        <div className="border-t border-stone-100 py-1.5 text-center text-xs text-stone-400">
-          {t('branchEnds')}
-        </div>
-      )}
-
-      {!isSpouse && <Handle type="source" position={Position.Bottom} style={{ opacity: 0 }} />}
+      <Handle type="target" position={Position.Bottom} style={{ opacity: 0 }} />
     </div>
   );
 }
