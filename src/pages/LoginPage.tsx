@@ -17,11 +17,11 @@ export function LoginPage() {
     e.preventDefault();
     setError(null);
     setLoading(true);
-    
+
     const loginIdentifier = email.trim();
     // If the user entered a name (no @ symbol), automatically append a dummy domain
-    const formattedEmail = loginIdentifier.includes('@') 
-      ? loginIdentifier 
+    const formattedEmail = loginIdentifier.includes('@')
+      ? loginIdentifier
       : `${loginIdentifier}@gmail.com`;
 
     const { error: signInError } = await signIn(formattedEmail, password);
@@ -61,7 +61,7 @@ export function LoginPage() {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   className="w-full rounded-lg border border-stone-300 pl-10 pr-3 py-2.5 text-sm focus:border-amber-600 focus:outline-none focus:ring-2 focus:ring-amber-600/20"
-                  placeholder="admin@family.com or Admin Name"
+                  placeholder="example@gmail.com or Name"
                 />
               </div>
             </div>
