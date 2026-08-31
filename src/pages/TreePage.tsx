@@ -18,7 +18,7 @@ import { useSearchParams, Link } from 'react-router-dom';
 import { Maximize2, Minimize2, Trees, ChevronRight, User } from 'lucide-react';
 import { useI18n } from '@/context/I18nContext';
 import { PersonNode, type PersonNodeData } from '@/components/PersonNode';
-import { getRootAncestor, getPerson, getChildren, getSpouses } from '@/services/family';
+import { getRootAncestor, getPerson, getChildren, getSpouses, getDescendants } from '@/services/family';
 import { displayName, birthYear } from '@/utils/person';
 import type { Person } from '@/types';
 
@@ -249,41 +249,58 @@ function TreeView() {
         loadedRef.current.clear();
         loadedRef.current.set(root.id, {
           person: root,
-          childrenExpanded: false,
-          hasChildren: root.children_status === 'has_children',
+          childrenExpanded: true,
+          hasChildren: false,
           childrenCount: 0,
           x: 0,
           y: 0,
         });
 
-        const spouses = await getSpouses(root.id);
-        spouses.forEach(({ spouse }) => {
-          loadedRef.current.set(spouse.id, {
-            person: spouse,
-            childrenExpanded: false,
+        const descendants = await getDescendants(root.id);
+        descendants.forEach(({ person: c }: { person: Person }) => {
+          loadedRef.current.set(c.id, {
+            person: c,
+            childrenExpanded: true,
             hasChildren: false,
             childrenCount: 0,
             x: 0,
             y: 0,
-            partnerId: root.id,
           });
         });
 
-        const children = await getChildren(root.id);
-        children.forEach((c) => {
-          loadedRef.current.set(c.id, {
-            person: c,
-            childrenExpanded: false,
-            hasChildren: c.children_status === 'has_children',
-            childrenCount: 0,
-            x: 0,
-            y: 0,
+        // Calculate accurate children counts
+        loadedRef.current.forEach((ln, id) => {
+          let count = 0;
+          loadedRef.current.forEach((childLn) => {
+            if (childLn.person.father_id === id || childLn.person.mother_id === id) {
+              count++;
+            }
+          });
+          ln.childrenCount = count;
+          if (count > 0) ln.hasChildren = true;
+        });
+
+        // Fetch spouses for everyone loaded
+        const allIds = Array.from(loadedRef.current.keys());
+        const spousesResults = await Promise.all(allIds.map(id => getSpouses(id).then(sp => ({ id, sp }))));
+        
+        spousesResults.forEach(({ id, sp }) => {
+          sp.forEach(({ spouse }) => {
+            if (!loadedRef.current.has(spouse.id)) {
+              loadedRef.current.set(spouse.id, {
+                person: spouse,
+                childrenExpanded: false,
+                hasChildren: false,
+                childrenCount: 0,
+                x: 0,
+                y: 0,
+                partnerId: id,
+              });
+            }
           });
         });
         const rootLn = loadedRef.current.get(root.id)!;
         rootLn.childrenExpanded = true;
-        rootLn.childrenCount = children.length;
-        rootLn.hasChildren = children.length > 0;
 
         renderTree();
         setLoading(false);
