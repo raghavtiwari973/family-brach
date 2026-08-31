@@ -33,7 +33,7 @@ function PersonNodeBase({ data }: { data: PersonNodeData }) {
 
   return (
     <div
-      className={`relative rounded-xl border-2 bg-white shadow-md transition-all ${
+      className={`relative rounded-full overflow-hidden border-2 bg-white shadow-md transition-all ${
         isSelected
           ? 'border-amber-600 ring-4 ring-amber-600/30 scale-105'
           : isHighlighted

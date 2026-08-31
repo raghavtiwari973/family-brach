@@ -51,7 +51,7 @@ export function MemberForm({ editingId }: Props) {
   });
 
   const [selectedSpouseId, setSelectedSpouseId] = useState<string | 'new'>('');
-  const [spouseSearch, setSpouseSearch] = useState('');
+
 
   useEffect(() => {
     getPersons(1000).then(setAllPersons).catch(() => {});
@@ -196,71 +196,11 @@ export function MemberForm({ editingId }: Props) {
         {/* Personal Info */}
         <div className={sectionClass}>
           <h2 className={sectionTitle}>{t('personalInfo')}</h2>
-          <div className="grid gap-4 sm:grid-cols-3">
-            <div>
-              <label className={labelClass}>{t('firstNameEn')}</label>
-              <input className={inputClass} value={form.first_name_en ?? ''} onChange={(e) => update('first_name_en', e.target.value)} />
-            </div>
-            <div>
-              <label className={labelClass}>{t('middleNameEn')}</label>
-              <input className={inputClass} value={form.middle_name_en ?? ''} onChange={(e) => update('middle_name_en', e.target.value)} />
-            </div>
-            <div>
-              <label className={labelClass}>{t('lastNameEn')}</label>
-              <input className={inputClass} value={form.last_name_en ?? ''} onChange={(e) => update('last_name_en', e.target.value)} />
-            </div>
+          <div className="grid gap-4 sm:grid-cols-1">
             <div>
               <label className={labelClass}>{t('firstNameHi')}</label>
               <input className={inputClass} value={form.first_name_hi ?? ''} onChange={(e) => update('first_name_hi', e.target.value)} dir="auto" />
             </div>
-            <div>
-              <label className={labelClass}>{t('middleNameHi')}</label>
-              <input className={inputClass} value={form.middle_name_hi ?? ''} onChange={(e) => update('middle_name_hi', e.target.value)} dir="auto" />
-            </div>
-            <div>
-              <label className={labelClass}>{t('lastNameHi')}</label>
-              <input className={inputClass} value={form.last_name_hi ?? ''} onChange={(e) => update('last_name_hi', e.target.value)} dir="auto" />
-            </div>
-          </div>
-
-          <div className="mt-4 grid gap-4 sm:grid-cols-2">
-            <div>
-              <label className={labelClass}>{t('nickname')}</label>
-              <input className={inputClass} value={form.nickname ?? ''} onChange={(e) => update('nickname', e.target.value)} />
-            </div>
-            <div>
-              <label className={labelClass}>{t('gender')}</label>
-              <select
-                className={inputClass}
-                value={form.gender ?? ''}
-                onChange={(e) => update('gender', (e.target.value || null) as Gender | null)}
-              >
-                <option value="">{t('none')}</option>
-                <option value="male">{t('male')}</option>
-                <option value="female">{t('female')}</option>
-                <option value="other">{t('other')}</option>
-              </select>
-            </div>
-            <div>
-              <label className={labelClass}>{t('dateOfBirth')}</label>
-              <input type="date" className={inputClass} value={form.date_of_birth ?? ''} onChange={(e) => update('date_of_birth', e.target.value)} />
-            </div>
-            <div>
-              <label className={labelClass}>{t('placeOfBirth')}</label>
-              <input className={inputClass} value={form.place_of_birth ?? ''} onChange={(e) => update('place_of_birth', e.target.value)} />
-            </div>
-
-          </div>
-
-          <div className="mt-4">
-            <label className={labelClass}>{t('biography')}</label>
-            <textarea
-              className={inputClass}
-              rows={3}
-              value={form.biography ?? ''}
-              onChange={(e) => update('biography', e.target.value)}
-              dir="auto"
-            />
           </div>
         </div>
 
@@ -270,13 +210,6 @@ export function MemberForm({ editingId }: Props) {
           
           <div className="mb-4">
             <label className={labelClass}>{t('selectExisting')} / {t('createNewSpouse')}</label>
-            <input 
-              type="text" 
-              className={`${inputClass} mb-2`} 
-              placeholder={t('searchPlaceholder')} 
-              value={spouseSearch} 
-              onChange={(e) => setSpouseSearch(e.target.value)} 
-            />
             <select
               className={inputClass}
               value={selectedSpouseId}
@@ -284,91 +217,23 @@ export function MemberForm({ editingId }: Props) {
             >
               <option value="">{t('none')}</option>
               <option value="new">+ {t('createNewSpouse')}</option>
-              {parentOptions
-                .filter((p) => displayName(p, lang).toLowerCase().includes(spouseSearch.toLowerCase()))
-                .map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {displayName(p, lang)}
-                  </option>
+              {parentOptions.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {displayName(p, lang)}
+                </option>
               ))}
             </select>
           </div>
 
           {selectedSpouseId === 'new' && (
             <>
-              <div className="grid gap-4 sm:grid-cols-3">
-                <div>
-                  <label className={labelClass}>{t('firstNameEn')}</label>
-                  <input className={inputClass} value={spouseForm.first_name_en} onChange={(e) => updateSpouse('first_name_en', e.target.value)} />
-                </div>
-                <div>
-                  <label className={labelClass}>{t('middleNameEn')}</label>
-                  <input className={inputClass} value={spouseForm.middle_name_en} onChange={(e) => updateSpouse('middle_name_en', e.target.value)} />
-                </div>
-                <div>
-                  <label className={labelClass}>{t('lastNameEn')}</label>
-                  <input className={inputClass} value={spouseForm.last_name_en} onChange={(e) => updateSpouse('last_name_en', e.target.value)} />
-                </div>
+              <div className="grid gap-4 sm:grid-cols-1">
                 <div>
                   <label className={labelClass}>{t('firstNameHi')}</label>
                   <input className={inputClass} value={spouseForm.first_name_hi} onChange={(e) => updateSpouse('first_name_hi', e.target.value)} dir="auto" />
                 </div>
-                <div>
-                  <label className={labelClass}>{t('middleNameHi')}</label>
-                  <input className={inputClass} value={spouseForm.middle_name_hi} onChange={(e) => updateSpouse('middle_name_hi', e.target.value)} dir="auto" />
-                </div>
-                <div>
-                  <label className={labelClass}>{t('lastNameHi')}</label>
-                  <input className={inputClass} value={spouseForm.last_name_hi} onChange={(e) => updateSpouse('last_name_hi', e.target.value)} dir="auto" />
-                </div>
-              </div>
-              <div className="mt-4 grid gap-4 sm:grid-cols-3">
-                <div>
-                  <label className={labelClass}>{t('gender')}</label>
-                  <select
-                    className={inputClass}
-                    value={spouseForm.gender ?? ''}
-                    onChange={(e) => updateSpouse('gender', (e.target.value || null) as Gender | null)}
-                  >
-                    <option value="">{t('none')}</option>
-                    <option value="male">{t('male')}</option>
-                    <option value="female">{t('female')}</option>
-                    <option value="other">{t('other')}</option>
-                  </select>
-                </div>
               </div>
             </>
-          )}
-        </div>
-
-        {/* Life Status */}
-        <div className={sectionClass}>
-          <h2 className={sectionTitle}>{t('lifeStatus')}</h2>
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div>
-              <label className={labelClass}>{t('status')}</label>
-              <select
-                className={inputClass}
-                value={form.life_status}
-                onChange={(e) => update('life_status', e.target.value as LifeStatus)}
-              >
-                <option value="alive">{t('alive')}</option>
-                <option value="deceased">{t('deceased')}</option>
-                <option value="unknown">{t('unknown')}</option>
-              </select>
-            </div>
-          </div>
-          {form.life_status === 'deceased' && (
-            <div className="mt-4 grid gap-4 sm:grid-cols-2">
-              <div>
-                <label className={labelClass}>{t('dateOfDeath')}</label>
-                <input type="date" className={inputClass} value={form.date_of_death ?? ''} onChange={(e) => update('date_of_death', e.target.value)} />
-              </div>
-              <div>
-                <label className={labelClass}>{t('placeOfDeath')}</label>
-                <input className={inputClass} value={form.place_of_death ?? ''} onChange={(e) => update('place_of_death', e.target.value)} />
-              </div>
-            </div>
           )}
         </div>
 
@@ -391,54 +256,6 @@ export function MemberForm({ editingId }: Props) {
                       {displayName(p, lang)}
                     </option>
                   ))}
-              </select>
-            </div>
-            <div>
-              <label className={labelClass}>{t('mother')}</label>
-              <select
-                className={inputClass}
-                value={form.mother_id ?? ''}
-                onChange={(e) => update('mother_id', (e.target.value || null) as string | null)}
-              >
-                <option value="">{t('none')}</option>
-                {parentOptions
-                  .filter((p) => p.gender !== 'male')
-                  .map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {displayName(p, lang)}
-                    </option>
-                  ))}
-              </select>
-            </div>
-          </div>
-        </div>
-
-        {/* Children & Branch */}
-        <div className={sectionClass}>
-          <h2 className={sectionTitle}>{t('childrenInfo')}</h2>
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div>
-              <label className={labelClass}>{t('children')}</label>
-              <select
-                className={inputClass}
-                value={form.children_status}
-                onChange={(e) => update('children_status', e.target.value as ChildrenStatus)}
-              >
-                <option value="unknown">{t('unknown')}</option>
-                <option value="has_children">{t('hasChildren')}</option>
-                <option value="no_children">{t('noChildren')}</option>
-              </select>
-            </div>
-            <div>
-              <label className={labelClass}>{t('familyBranch')}</label>
-              <select
-                className={inputClass}
-                value={form.branch_status}
-                onChange={(e) => update('branch_status', e.target.value as BranchStatus)}
-              >
-                <option value="unknown">{t('unknown')}</option>
-                <option value="continues">{t('branchContinues')}</option>
-                <option value="ends_here">{t('branchEndsHere')}</option>
               </select>
             </div>
           </div>
