@@ -37,7 +37,7 @@ export function LoginPage() {
     <div className="flex min-h-[calc(100vh-65px)] items-center justify-center bg-gradient-to-b from-stone-100 to-amber-50 px-4 py-12">
       <div className="w-full max-w-md">
         <Link to="/" className="mb-6 flex items-center justify-center gap-2 text-stone-600 hover:text-amber-700">
-          <Trees className="h-5 w-5" />
+          <img src="/logo.png" className="h-12 w-auto object-contain" alt="Logo" />
           <span className="font-semibold">{t('appName')}</span>
         </Link>
 

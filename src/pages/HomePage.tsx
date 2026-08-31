@@ -26,8 +26,8 @@ export function HomePage() {
           }}
         />
         <div className="relative mx-auto flex max-w-7xl flex-col items-center px-4 py-20 text-center sm:px-6 sm:py-28">
-          <div className="mb-6 flex h-20 w-20 items-center justify-center rounded-2xl bg-white/10 backdrop-blur ring-1 ring-white/20">
-            <Trees className="h-11 w-11 text-amber-200" />
+          <div className="mb-8 flex items-center justify-center rounded-3xl bg-white/95 p-4 shadow-xl backdrop-blur-sm ring-1 ring-white/20 sm:p-6">
+            <img src="/logo.png" className="h-32 w-auto object-contain sm:h-40" alt="Logo" />
           </div>
           <h1 className="max-w-3xl text-4xl font-bold leading-tight tracking-tight sm:text-5xl md:text-6xl">
             {lang === 'hi' ? t('tagline') : t('tagline')}

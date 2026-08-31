@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Save, X, User } from 'lucide-react';
 import { useI18n } from '@/context/I18nContext';
-import { getPersons, createPerson, updatePerson, getPerson } from '@/services/family';
+import { getPersons, createPerson, updatePerson, getPerson, createSpouse } from '@/services/family';
 import type { Person, PersonInput, Gender, LifeStatus, ChildrenStatus, BranchStatus } from '@/types';
 import { displayName } from '@/utils/person';
 
@@ -39,6 +39,19 @@ export function MemberForm({ editingId }: Props) {
     children_status: 'unknown',
     branch_status: 'unknown',
   });
+
+  const [spouseForm, setSpouseForm] = useState({
+    first_name_en: '',
+    middle_name_en: '',
+    last_name_en: '',
+    first_name_hi: '',
+    middle_name_hi: '',
+    last_name_hi: '',
+    gender: null as Gender | null,
+  });
+
+  const [selectedSpouseId, setSelectedSpouseId] = useState<string | 'new'>('');
+  const [spouseSearch, setSpouseSearch] = useState('');
 
   useEffect(() => {
     getPersons(1000).then(setAllPersons).catch(() => {});
@@ -88,6 +101,10 @@ export function MemberForm({ editingId }: Props) {
     setForm((f) => ({ ...f, [key]: value }));
   }
 
+  function updateSpouse<K extends keyof typeof spouseForm>(key: K, value: (typeof spouseForm)[K]) {
+    setSpouseForm((f) => ({ ...f, [key]: value }));
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
@@ -109,6 +126,30 @@ export function MemberForm({ editingId }: Props) {
       const saved = editingId
         ? await updatePerson(editingId, payload)
         : await createPerson(payload);
+
+      // Link or create spouse
+      if (selectedSpouseId === 'new') {
+        const hasSpouseName = spouseForm.first_name_en || spouseForm.first_name_hi || spouseForm.last_name_en || spouseForm.last_name_hi;
+        if (hasSpouseName) {
+          const spousePayload: PersonInput = {
+            first_name_en: spouseForm.first_name_en || null,
+            middle_name_en: spouseForm.middle_name_en || null,
+            last_name_en: spouseForm.last_name_en || null,
+            first_name_hi: spouseForm.first_name_hi || null,
+            middle_name_hi: spouseForm.middle_name_hi || null,
+            last_name_hi: spouseForm.last_name_hi || null,
+            gender: spouseForm.gender,
+            life_status: 'alive',
+            children_status: 'unknown',
+            branch_status: 'unknown',
+          };
+          const savedSpouse = await createPerson(spousePayload);
+          await createSpouse(saved.id, savedSpouse.id);
+        }
+      } else if (selectedSpouseId && selectedSpouseId !== '') {
+        await createSpouse(saved.id, selectedSpouseId);
+      }
+
       navigate(`/person/${saved.id}`);
     } catch (err) {
       setError((err as Error).message);
@@ -208,10 +249,7 @@ export function MemberForm({ editingId }: Props) {
               <label className={labelClass}>{t('placeOfBirth')}</label>
               <input className={inputClass} value={form.place_of_birth ?? ''} onChange={(e) => update('place_of_birth', e.target.value)} />
             </div>
-            <div>
-              <label className={labelClass}>{t('profilePhoto')}</label>
-              <input className={inputClass} placeholder={t('photoUrl')} value={form.profile_photo ?? ''} onChange={(e) => update('profile_photo', e.target.value)} />
-            </div>
+
           </div>
 
           <div className="mt-4">
@@ -224,6 +262,83 @@ export function MemberForm({ editingId }: Props) {
               dir="auto"
             />
           </div>
+        </div>
+
+        {/* Spouse (Optional) */}
+        <div className={sectionClass}>
+          <h2 className={sectionTitle}>{t('spouse')} (Optional)</h2>
+          
+          <div className="mb-4">
+            <label className={labelClass}>{t('selectExisting')} / {t('createNewSpouse')}</label>
+            <input 
+              type="text" 
+              className={`${inputClass} mb-2`} 
+              placeholder={t('searchPlaceholder')} 
+              value={spouseSearch} 
+              onChange={(e) => setSpouseSearch(e.target.value)} 
+            />
+            <select
+              className={inputClass}
+              value={selectedSpouseId}
+              onChange={(e) => setSelectedSpouseId(e.target.value as string | 'new')}
+            >
+              <option value="">{t('none')}</option>
+              <option value="new">+ {t('createNewSpouse')}</option>
+              {parentOptions
+                .filter((p) => displayName(p, lang).toLowerCase().includes(spouseSearch.toLowerCase()))
+                .map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {displayName(p, lang)}
+                  </option>
+              ))}
+            </select>
+          </div>
+
+          {selectedSpouseId === 'new' && (
+            <>
+              <div className="grid gap-4 sm:grid-cols-3">
+                <div>
+                  <label className={labelClass}>{t('firstNameEn')}</label>
+                  <input className={inputClass} value={spouseForm.first_name_en} onChange={(e) => updateSpouse('first_name_en', e.target.value)} />
+                </div>
+                <div>
+                  <label className={labelClass}>{t('middleNameEn')}</label>
+                  <input className={inputClass} value={spouseForm.middle_name_en} onChange={(e) => updateSpouse('middle_name_en', e.target.value)} />
+                </div>
+                <div>
+                  <label className={labelClass}>{t('lastNameEn')}</label>
+                  <input className={inputClass} value={spouseForm.last_name_en} onChange={(e) => updateSpouse('last_name_en', e.target.value)} />
+                </div>
+                <div>
+                  <label className={labelClass}>{t('firstNameHi')}</label>
+                  <input className={inputClass} value={spouseForm.first_name_hi} onChange={(e) => updateSpouse('first_name_hi', e.target.value)} dir="auto" />
+                </div>
+                <div>
+                  <label className={labelClass}>{t('middleNameHi')}</label>
+                  <input className={inputClass} value={spouseForm.middle_name_hi} onChange={(e) => updateSpouse('middle_name_hi', e.target.value)} dir="auto" />
+                </div>
+                <div>
+                  <label className={labelClass}>{t('lastNameHi')}</label>
+                  <input className={inputClass} value={spouseForm.last_name_hi} onChange={(e) => updateSpouse('last_name_hi', e.target.value)} dir="auto" />
+                </div>
+              </div>
+              <div className="mt-4 grid gap-4 sm:grid-cols-3">
+                <div>
+                  <label className={labelClass}>{t('gender')}</label>
+                  <select
+                    className={inputClass}
+                    value={spouseForm.gender ?? ''}
+                    onChange={(e) => updateSpouse('gender', (e.target.value || null) as Gender | null)}
+                  >
+                    <option value="">{t('none')}</option>
+                    <option value="male">{t('male')}</option>
+                    <option value="female">{t('female')}</option>
+                    <option value="other">{t('other')}</option>
+                  </select>
+                </div>
+              </div>
+            </>
+          )}
         </div>
 
         {/* Life Status */}

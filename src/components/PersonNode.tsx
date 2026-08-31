@@ -5,7 +5,7 @@ import type { Person } from '@/types';
 import type { Lang } from '@/i18n/translations';
 import { displayName, birthYear, deathYear, calcAge } from '@/utils/person';
 
-export interface PersonNodeData {
+export interface PersonNodeData extends Record<string, unknown> {
   person: Person;
   lang: Lang;
   isHighlighted?: boolean;

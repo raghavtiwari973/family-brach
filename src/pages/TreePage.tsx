@@ -1,3 +1,4 @@
+import dagre from 'dagre';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ReactFlow,
@@ -35,6 +36,7 @@ interface LoadedNode {
   childrenCount: number;
   x: number;
   y: number;
+  partnerId?: string;
 }
 
 function TreeView() {
@@ -120,6 +122,7 @@ function TreeView() {
               childrenCount: 0,
               x: 0,
               y: 0,
+              partnerId: id,
             });
           }
         });
@@ -140,59 +143,71 @@ function TreeView() {
       return;
     }
 
-    // Find root: a node with no parents in the map
-    const entries = Array.from(map.values());
-    const rootEntry =
-      entries.find((ln) => !ln.person.father_id && !ln.person.mother_id) ??
-      entries.find((ln) => {
-        const fIn = ln.person.father_id && map.has(ln.person.father_id);
-        const mIn = ln.person.mother_id && map.has(ln.person.mother_id);
-        return !fIn && !mIn;
-      }) ??
-      entries[0];
+    const g = new dagre.graphlib.Graph();
+    g.setGraph({ rankdir: 'TB', nodesep: 100, ranksep: 150 });
+    g.setDefaultEdgeLabel(() => ({}));
 
-    // BFS depths from root
-    const depths = new Map<string, number>();
-    depths.set(rootEntry.person.id, 0);
-    const queue = [rootEntry.person.id];
-    while (queue.length > 0) {
-      const id = queue.shift()!;
-      const d = depths.get(id)!;
-      map.forEach((ln) => {
-        if (
-          (ln.person.father_id === id || ln.person.mother_id === id) &&
-          !depths.has(ln.person.id)
-        ) {
-          depths.set(ln.person.id, d + 1);
-          queue.push(ln.person.id);
-        }
+    // Find who has a spouse to allocate width
+    const spousesByPartner = new Map<string, string>();
+    map.forEach((ln, id) => {
+      if (ln.partnerId && map.has(ln.partnerId)) {
+        spousesByPartner.set(ln.partnerId, id);
+      }
+    });
+
+    // Add nodes to dagre
+    map.forEach((ln, id) => {
+      if (ln.partnerId) return; // Do not add spouses to dagre, we'll position them manually
+      
+      const hasSpouse = spousesByPartner.has(id);
+      g.setNode(id, { 
+        width: hasSpouse ? NODE_W * 2 + 50 : NODE_W, 
+        height: NODE_H 
       });
-    }
+    });
+
+    // Build edges
+    const newEdges: Edge[] = [];
     map.forEach((ln) => {
-      if (!depths.has(ln.person.id)) depths.set(ln.person.id, 0);
+      if (ln.partnerId) return; // Spouses don't have structural tree edges pointing from parents
+      
+      const p = ln.person;
+      const parentId = p.father_id && map.has(p.father_id) ? p.father_id : p.mother_id && map.has(p.mother_id) ? p.mother_id : null;
+      if (parentId) {
+        g.setEdge(parentId, p.id);
+        newEdges.push({
+          id: `e-${parentId}-${p.id}`,
+          source: parentId,
+          target: p.id,
+          type: 'smoothstep',
+          style: { stroke: '#a8a29e', strokeWidth: 2 },
+        });
+      }
     });
 
-    // Group by depth, sort children under same parent
-    const byDepth = new Map<number, string[]>();
-    depths.forEach((d, id) => {
-      if (!byDepth.has(d)) byDepth.set(d, []);
-      byDepth.get(d)!.push(id);
-    });
-
-    // Position nodes
-    byDepth.forEach((ids) => {
-      const totalWidth = ids.length * SIBLING_GAP;
-      const startX = -totalWidth / 2 + SIBLING_GAP / 2;
-      ids.forEach((id, i) => {
-        const ln = map.get(id)!;
-        ln.x = startX + i * SIBLING_GAP;
-        ln.y = depths.get(id)! * LEVEL_GAP;
-      });
-    });
+    dagre.layout(g);
 
     // Build React Flow nodes
     const newNodes: Node<PersonNodeData>[] = [];
-    map.forEach((ln) => {
+    map.forEach((ln, id) => {
+      let x = 0;
+      let y = 0;
+
+      if (ln.partnerId && map.has(ln.partnerId)) {
+        // Position spouse next to partner
+        const pNode = g.node(ln.partnerId);
+        x = pNode.x - pNode.width / 2 + NODE_W / 2 + NODE_W + 50;
+        y = pNode.y - pNode.height / 2;
+      } else {
+        // Main node
+        const dNode = g.node(id);
+        x = dNode.x - dNode.width / 2 + NODE_W / 2;
+        y = dNode.y - dNode.height / 2;
+      }
+
+      ln.x = x;
+      ln.y = y;
+
       newNodes.push({
         id: ln.person.id,
         type: 'person',
@@ -209,24 +224,9 @@ function TreeView() {
           isSelected: selectedId === ln.person.id,
           onToggleChildren: handleToggleChildren,
           onSelect: handleSelect,
+          isSpouse: !!ln.partnerId,
         },
       });
-    });
-
-    // Build edges
-    const newEdges: Edge[] = [];
-    map.forEach((ln) => {
-      const p = ln.person;
-      const parentId = p.father_id && map.has(p.father_id) ? p.father_id : p.mother_id && map.has(p.mother_id) ? p.mother_id : null;
-      if (parentId) {
-        newEdges.push({
-          id: `e-${parentId}-${p.id}`,
-          source: parentId,
-          target: p.id,
-          type: 'smoothstep',
-          style: { stroke: '#a8a29e', strokeWidth: 2 },
-        });
-      }
     });
 
     setNodes(newNodes);
@@ -265,6 +265,7 @@ function TreeView() {
             childrenCount: 0,
             x: 0,
             y: 0,
+            partnerId: root.id,
           });
         });
 
