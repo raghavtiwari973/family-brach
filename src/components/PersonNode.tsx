@@ -59,13 +59,13 @@ function PersonNodeBase({ data }: { data: PersonNodeData }) {
             )}
           </div>
           <div className="min-w-0 flex-1">
-            <div className="truncate text-sm font-semibold text-stone-800">
+            <h3 className="truncate font-semibold text-stone-800" title={displayName(person, lang)}>
               {displayName(person, lang)}
-            </div>
+            </h3>
             {person.nickname && (
               <div className="truncate text-xs text-stone-500">"{person.nickname}"</div>
             )}
-            <div className="mt-1 flex items-center gap-1.5 text-xs">
+            <div className="mt-1 flex flex-col gap-0.5 text-[11px] font-medium">
               {person.life_status === 'alive' && (
                 <span className="flex items-center gap-1 text-emerald-600">
                   <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />

@@ -179,8 +179,8 @@ function TreeView() {
           id: `e-${parentId}-${p.id}`,
           source: parentId,
           target: p.id,
-          type: 'smoothstep',
-          style: { stroke: '#a8a29e', strokeWidth: 2 },
+          type: 'bezier', // Smooth curve like a branch
+          style: { stroke: '#78350f', strokeWidth: 5 }, // Amber-900 wood color, thick stroke
         });
       }
     });

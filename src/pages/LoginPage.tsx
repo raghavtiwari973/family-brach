@@ -18,7 +18,7 @@ export function LoginPage() {
     setError(null);
     setLoading(true);
 
-    const loginIdentifier = email.trim();
+    const loginIdentifier = email.trim().toLowerCase();
     // If the user entered a name (no @ symbol), automatically append a dummy domain
     const formattedEmail = loginIdentifier.includes('@')
       ? loginIdentifier
