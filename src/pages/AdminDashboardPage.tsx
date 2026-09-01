@@ -9,7 +9,6 @@ import type { Person } from '@/types';
 export function AdminDashboardPage() {
   const { t, lang } = useI18n();
   const [stats, setStats] = useState<{ total: number; alive: number; deceased: number } | null>(null);
-  const [recent, setRecent] = useState<Person[]>([]);
   const [allPersons, setAllPersons] = useState<Person[]>([]);
   const [query, setQuery] = useState('');
   const [loading, setLoading] = useState(true);
@@ -18,9 +17,8 @@ export function AdminDashboardPage() {
   useEffect(() => {
     (async () => {
       try {
-        const [s, r, all] = await Promise.all([getStats(), getRecentPersons(6), getPersons(1000)]);
+        const [s, all] = await Promise.all([getStats(), getPersons(1000)]);
         setStats(s);
-        setRecent(r);
         setAllPersons(all);
       } catch (err) {
         console.error("Error fetching dashboard data:", err);
@@ -34,7 +32,6 @@ export function AdminDashboardPage() {
     try {
       await deletePerson(id);
       setAllPersons((prev) => prev.filter((p) => p.id !== id));
-      setRecent((prev) => prev.filter((p) => p.id !== id));
       setConfirmId(null);
     } catch (e) {
       alert((e as Error).message);
@@ -45,7 +42,7 @@ export function AdminDashboardPage() {
     ? allPersons.filter((p) =>
         displayName(p, lang).toLowerCase().includes(query.toLowerCase()),
       )
-    : recent;
+    : allPersons;
 
   const statCards = [
     { label: t('totalMembers'), value: stats?.total ?? 0, icon: Users, color: 'text-amber-700 bg-amber-50' },

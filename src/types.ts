@@ -25,6 +25,8 @@ export interface Person {
   mother_id: string | null;
   children_status: ChildrenStatus;
   branch_status: BranchStatus;
+  child_type: 'putr' | 'putri' | null;
+  children_count: number | null;
   created_at: string;
   updated_at: string;
 }
@@ -67,4 +69,6 @@ export interface PersonInput {
   mother_id?: string | null;
   children_status?: ChildrenStatus;
   branch_status?: BranchStatus;
+  child_type?: 'putr' | 'putri' | null;
+  children_count?: number | null;
 }

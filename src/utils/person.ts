@@ -1,4 +1,5 @@
-import type { Person, Lang } from '@/types';
+import type { Person } from '@/types';
+import type { Lang } from '@/i18n/translations';
 
 export function fullNameEn(p: Pick<Person, 'first_name_en' | 'middle_name_en' | 'last_name_en'>): string {
   return [p.first_name_en, p.middle_name_en, p.last_name_en].filter(Boolean).join(' ').trim() || '—';
@@ -11,9 +12,24 @@ export function fullNameHi(p: Pick<Person, 'first_name_hi' | 'middle_name_hi' | 
 export function displayName(p: Person, lang: Lang): string {
   const en = fullNameEn(p);
   const hi = fullNameHi(p);
-  if (lang === 'hi' && hi !== '—') return hi;
-  if (lang === 'en' && en !== '—') return en;
-  return en !== '—' ? en : hi !== '—' ? hi : '—';
+  let name = '';
+  if (lang === 'hi' && hi !== '—') name = hi;
+  else if (lang === 'en' && en !== '—') name = en;
+  else name = en !== '—' ? en : hi !== '—' ? hi : '—';
+
+  // Only prepend prefix and number for actual family members (descendants)
+  // External spouses and the root node won't have father_id or mother_id
+  if (p.father_id || p.mother_id) {
+    const prefixEn = p.child_type === 'putri' ? 'Daughter' : 'Son';
+    const prefixHi = p.child_type === 'putri' ? 'पुत्री' : 'पुत्र';
+    const prefix = lang === 'hi' ? prefixHi : prefixEn;
+    const number = p.children_count || '';
+    if (prefix && number) {
+      return `(${number}) *${prefix} ${name}`;
+    }
+  }
+
+  return name;
 }
 
 export function birthYear(p: Person): string | null {

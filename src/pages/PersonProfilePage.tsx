@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
-import { useParams, Link } from 'react-router-dom';
-import { ArrowLeft, Trees, GitBranch, ChevronUp, ChevronDown, Heart, Users } from 'lucide-react';
+import { useParams, Link, useNavigate } from 'react-router-dom';
+import { ArrowLeft, Trees, GitBranch, ChevronUp, ChevronDown, Heart, Users, Trash2, Edit2, User } from 'lucide-react';
 import { useI18n } from '@/context/I18nContext';
 import { useAuth } from '@/context/AuthContext';
 import { PersonDetail, PersonCard } from '@/components/PersonCard';
@@ -10,6 +10,7 @@ import {
   getSpouses,
   getAncestors,
   getDescendants,
+  deletePerson,
 } from '@/services/family';
 import type { Person } from '@/types';
 import { displayName } from '@/utils/person';
@@ -18,6 +19,21 @@ export function PersonProfilePage() {
   const { id } = useParams<{ id: string }>();
   const { t, lang } = useI18n();
   const { session } = useAuth();
+  const navigate = useNavigate();
+
+  async function handleDelete(personId: string, isMain: boolean) {
+    if (!window.confirm(lang === 'hi' ? 'क्या आप वाकई इस व्यक्ति को हटाना चाहते हैं?' : 'Are you sure you want to delete this person? This action cannot be undone.')) return;
+    try {
+      await deletePerson(personId);
+      if (isMain) {
+        navigate('/tree');
+      } else {
+        setSpouses(spouses.filter(s => s.id !== personId));
+      }
+    } catch (e) {
+      alert(lang === 'hi' ? 'हटाने में विफल। कृपया पुनः प्रयास करें।' : 'Failed to delete person. Please try again.');
+    }
+  }
 
   const [person, setPerson] = useState<Person | null>(null);
   const [father, setFather] = useState<Person | null>(null);
@@ -150,17 +166,27 @@ export function PersonProfilePage() {
             {t('viewCompleteBranch')}
           </Link>
           {session && (
-            <Link
-              to={`/admin/edit/${person.id}`}
-              className="inline-flex items-center gap-1.5 rounded-lg bg-stone-800 px-3 py-2 text-sm font-medium text-white hover:bg-stone-900 transition"
-            >
-              {t('edit')}
-            </Link>
+            <div className="flex items-center gap-2">
+              <Link
+                to={`/admin/edit/${person.id}`}
+                className="inline-flex items-center gap-1.5 rounded-lg bg-stone-800 px-3 py-2 text-sm font-medium text-white hover:bg-stone-900 transition"
+              >
+                <Edit2 className="h-4 w-4" />
+                {t('edit')}
+              </Link>
+              <button
+                onClick={() => handleDelete(person.id, true)}
+                className="inline-flex items-center gap-1.5 rounded-lg bg-red-600 px-3 py-2 text-sm font-medium text-white hover:bg-red-700 transition"
+              >
+                <Trash2 className="h-4 w-4" />
+                Delete
+              </button>
+            </div>
           )}
         </div>
       </div>
 
-      <PersonDetail person={person} />
+      <PersonDetail person={person} childrenCount={children.length} />
 
       {/* Parents */}
       <div className="mt-6 grid gap-4 sm:grid-cols-2">
@@ -184,7 +210,26 @@ export function PersonProfilePage() {
           <h3 className="mb-2 text-sm font-semibold uppercase tracking-wide text-stone-500">{t('spouse')}</h3>
           <div className="grid gap-3 sm:grid-cols-2">
             {spouses.map((s) => (
-              <PersonCard key={s.id} person={s} showRelationship={t(person.gender === 'female' ? 'husband' : 'wife')} />
+              <div key={s.id} className="flex items-center justify-between rounded-lg border border-stone-200 bg-white p-3">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full ring-2 ring-pink-200 bg-pink-50 text-pink-600">
+                    <User className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <h4 className="font-medium text-stone-800">{displayName(s, lang)}</h4>
+                  </div>
+                </div>
+                {session && (
+                  <div className="flex items-center gap-2">
+                    <Link to={`/admin/edit/${s.id}`} className="p-2 text-stone-400 hover:text-amber-700 transition" title="Edit">
+                      <Edit2 className="h-4 w-4" />
+                    </Link>
+                    <button onClick={() => handleDelete(s.id, false)} className="p-2 text-stone-400 hover:text-red-600 transition" title="Delete">
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </div>
+                )}
+              </div>
             ))}
           </div>
         </div>

@@ -146,6 +146,10 @@ export const translations = {
     femaleIcon: 'Female',
     downloadApp: 'Download App',
     downloadChart: 'Download Chart',
+    relationType: 'Prefixes',
+    putr: 'Son',
+    putri: 'Daughter',
+    numberOfChildren: 'Number',
   },
   hi: {
     appName: 'परिवार वंश वृक्ष',
@@ -292,6 +296,10 @@ export const translations = {
     femaleIcon: 'महिला',
     downloadApp: 'ऐप डाउनलोड करें',
     downloadChart: 'चार्ट डाउनलोड करें',
+    relationType: 'उपसर्ग',
+    putr: 'पुत्र',
+    putri: 'पुत्री',
+    numberOfChildren: 'संख्या',
   },
 } as const;
 

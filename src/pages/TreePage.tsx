@@ -27,8 +27,8 @@ import type { Person } from '@/types';
 
 const nodeTypes: NodeTypes = { person: PersonNode };
 
-const NODE_W = 240;
-const NODE_H = 130;
+const NODE_W = 340;
+const NODE_H = 150;
 const SIBLING_GAP = 230;
 const LEVEL_GAP = 210;
 
@@ -136,7 +136,7 @@ function TreeView() {
     }
 
     const g = new dagre.graphlib.Graph();
-    g.setGraph({ rankdir: 'BT', nodesep: 100, ranksep: 150 });
+    g.setGraph({ rankdir: 'BT', nodesep: 120, ranksep: 160 });
     g.setDefaultEdgeLabel(() => ({}));
 
     // Add nodes to dagre
@@ -149,7 +149,9 @@ function TreeView() {
 
     // Build edges
     const newEdges: Edge[] = [];
-    map.forEach((ln, targetId) => {
+    const entries = Array.from(map.entries());
+    entries.sort((a, b) => (a[1].person.children_count || 0) - (b[1].person.children_count || 0));
+    entries.forEach(([targetId, ln]) => {
       const peopleInNode = [ln.person, ...(ln.spouses || [])];
       
       peopleInNode.forEach((p) => {
@@ -211,6 +213,7 @@ function TreeView() {
           onToggleChildren: handleToggleChildren,
           onSelect: handleSelect,
           spouses: ln.spouses,
+          isPlaceholder: ln.person.id.startsWith('placeholder-'),
         },
       });
     });

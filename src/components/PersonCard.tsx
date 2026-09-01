@@ -54,9 +54,20 @@ export function PersonCard({
   );
 }
 
-export function PersonDetail({ person }: { person: Person }) {
+export function PersonDetail({ person, childrenCount }: { person: Person; childrenCount?: number }) {
   const { t, lang } = useI18n();
   const age = calcAge(person);
+
+  let derivedBranchStatus = person.branch_status;
+  if (childrenCount !== undefined) {
+    if (childrenCount > 0) {
+      derivedBranchStatus = 'continues';
+    } else if (person.life_status === 'deceased') {
+      derivedBranchStatus = 'ends_here';
+    } else {
+      derivedBranchStatus = 'unknown';
+    }
+  }
 
   return (
     <div className="overflow-hidden rounded-2xl border border-stone-200 bg-white shadow-sm">
@@ -144,15 +155,17 @@ export function PersonDetail({ person }: { person: Person }) {
             <div className="flex items-center gap-2">
               <GitBranch className="h-4 w-4 text-stone-400" />
               <span className="text-stone-500">{t('children')}:</span>
-              <span className="text-stone-800">
-                {person.children_status === 'has_children' ? t('hasChildren') : person.children_status === 'no_children' ? t('noChildren') : t('unknown')}
+              <span className="text-stone-800 font-medium">
+                {childrenCount !== undefined 
+                  ? childrenCount 
+                  : (person.children_status === 'has_children' ? t('hasChildren') : person.children_status === 'no_children' ? t('noChildren') : t('unknown'))}
               </span>
             </div>
             <div className="flex items-center gap-2">
               <Heart className="h-4 w-4 text-stone-400" />
               <span className="text-stone-500">{t('status')}:</span>
-              <span className="text-stone-800">
-                {person.branch_status === 'continues' ? t('branchContinues') : person.branch_status === 'ends_here' ? t('branchEndsHere') : t('unknown')}
+              <span className="text-stone-800 font-medium">
+                {derivedBranchStatus === 'continues' ? t('branchContinues') : derivedBranchStatus === 'ends_here' ? t('branchEndsHere') : t('unknown')}
               </span>
             </div>
           </div>

@@ -61,6 +61,7 @@ export interface PersonNodeData extends Record<string, unknown> {
   onSelect?: (id: string) => void;
   spouses?: Person[];
   t: (key: any) => string;
+  isPlaceholder?: boolean;
 }
 
 const getAvatarStyle = (gender: string) => {
@@ -71,7 +72,7 @@ const getAvatarStyle = (gender: string) => {
 };
 
 function PersonNodeBase({ data }: { data: PersonNodeData }) {
-  const { person, spouses, lang, isHighlighted, isSelected, childrenExpanded, hasChildren, childrenCount, loadingChildren, onToggleChildren, onSelect, t } = data;
+  const { person, spouses, lang, isHighlighted, isSelected, childrenExpanded, hasChildren, childrenCount, loadingChildren, onToggleChildren, onSelect, t, isPlaceholder } = data;
   
   let g = person.gender;
   if (!g || g === 'other' || g === 'unknown' as string) {
@@ -85,13 +86,15 @@ function PersonNodeBase({ data }: { data: PersonNodeData }) {
   return (
     <div
       className={`relative rounded-full overflow-hidden border-2 bg-white shadow-md transition-all ${
-        isSelected
+        isPlaceholder
+          ? 'border-stone-300 border-dashed opacity-70 bg-stone-50'
+          : isSelected
           ? 'border-amber-600 ring-4 ring-amber-600/30 scale-105'
           : isHighlighted
             ? 'border-amber-500 ring-2 ring-amber-500/40'
             : 'border-stone-200 hover:border-stone-300'
       }`}
-      style={{ width: 240 }}
+      style={{ width: 'max-content', minWidth: 240 }}
     >
       <Handle type="source" position={Position.Top} style={{ opacity: 0 }} />
 
@@ -113,8 +116,8 @@ function PersonNodeBase({ data }: { data: PersonNodeData }) {
                 getIconForGender(g, `h-5 w-5 ${style.icon}`)
               )}
             </div>
-            <div className="min-w-0 flex-1">
-              <h3 className="truncate font-semibold text-stone-800" title={displayName(person, lang)}>
+            <div className="min-w-0 flex-1 pr-2">
+              <h3 className="whitespace-nowrap font-semibold text-stone-800" title={displayName(person, lang)}>
                 {displayName(person, lang)}
                 {person.life_status && person.life_status !== 'unknown' && (
                   <span className={`ml-1 text-[10px] font-normal ${person.life_status === 'deceased' ? 'text-stone-500' : 'text-emerald-600'}`}>
@@ -123,7 +126,7 @@ function PersonNodeBase({ data }: { data: PersonNodeData }) {
                 )}
               </h3>
               {person.nickname && (
-                <div className="truncate text-xs text-stone-500">"{person.nickname}"</div>
+                <div className="whitespace-nowrap text-xs text-stone-500">"{person.nickname}"</div>
               )}
             </div>
           </div>
@@ -148,8 +151,8 @@ function PersonNodeBase({ data }: { data: PersonNodeData }) {
                     getIconForGender(sg, `h-5 w-5 ${sStyle.icon}`)
                   )}
                 </div>
-                <div className="min-w-0 flex-1">
-                  <h3 className="truncate font-semibold text-stone-800" title={displayName(spouse, lang)}>
+                <div className="min-w-0 flex-1 pr-2">
+                  <h3 className="whitespace-nowrap font-semibold text-stone-800" title={displayName(spouse, lang)}>
                     {displayName(spouse, lang)}
                     {spouse.life_status && spouse.life_status !== 'unknown' && (
                       <span className={`ml-1 text-[10px] font-normal ${spouse.life_status === 'deceased' ? 'text-stone-500' : 'text-emerald-600'}`}>
@@ -158,7 +161,7 @@ function PersonNodeBase({ data }: { data: PersonNodeData }) {
                     )}
                   </h3>
                   {spouse.nickname && (
-                    <div className="truncate text-xs text-stone-500">"{spouse.nickname}"</div>
+                    <div className="whitespace-nowrap text-xs text-stone-500">"{spouse.nickname}"</div>
                   )}
                 </div>
               </div>

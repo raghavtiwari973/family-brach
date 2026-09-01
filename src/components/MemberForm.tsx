@@ -40,6 +40,8 @@ export function MemberForm({ editingId }: Props) {
     mother_id: null,
     children_status: 'unknown',
     branch_status: 'unknown',
+    child_type: null,
+    children_count: null,
   });
 
   const [spouseForm, setSpouseForm] = useState({
@@ -54,6 +56,9 @@ export function MemberForm({ editingId }: Props) {
   });
 
   const [selectedSpouseId, setSelectedSpouseId] = useState<string | 'new'>('');
+
+  const [isExternalSpouse, setIsExternalSpouse] = useState(false);
+  const [mainSpouseName, setMainSpouseName] = useState('');
 
 
   useEffect(() => {
@@ -87,7 +92,19 @@ export function MemberForm({ editingId }: Props) {
             mother_id: p.mother_id,
             children_status: p.children_status,
             branch_status: p.branch_status,
+            child_type: p.child_type,
+            children_count: p.children_count,
           });
+
+          const { getRootAncestor, getSpouses } = await import('@/services/family');
+          const root = await getRootAncestor();
+          if (!p.father_id && !p.mother_id && root?.id !== p.id) {
+            const spouses = await getSpouses(p.id);
+            if (spouses.length > 0) {
+              setIsExternalSpouse(true);
+              setMainSpouseName(spouses[0].spouse.first_name_hi || spouses[0].spouse.first_name_en || '');
+            }
+          }
         }
       } finally {
         setLoadingData(false);
@@ -111,6 +128,12 @@ export function MemberForm({ editingId }: Props) {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
+    
+    if (!form.first_name_hi?.trim()) {
+      setError(lang === 'hi' ? 'कृपया नाम भरें।' : 'Please fill in Name.');
+      return;
+    }
+
     setSaving(true);
     try {
       const payload: PersonInput = {
@@ -200,6 +223,37 @@ export function MemberForm({ editingId }: Props) {
         <div className={sectionClass}>
           <h2 className={sectionTitle}>{t('personalInfo')}</h2>
           <div className="grid gap-4 sm:grid-cols-2">
+            {!isExternalSpouse && (
+              <>
+                <div>
+                  <label className={labelClass}>{t('relationType') as string}</label>
+                  <select
+                    className={inputClass}
+                    value={form.child_type ?? ''}
+                    onChange={(e) => update('child_type', (e.target.value || null) as 'putr' | 'putri' | null)}
+                  >
+                    <option value="">{t('none')}</option>
+                    <option value="putr">{t('putr') as string}</option>
+                    <option value="putri">{t('putri') as string}</option>
+                  </select>
+                </div>
+                <div>
+                  <label className={labelClass}>{t('numberOfChildren') as string}</label>
+                  <select
+                    className={inputClass}
+                    value={form.children_count ?? ''}
+                    onChange={(e) => update('children_count', parseInt(e.target.value) || null)}
+                  >
+                    <option value="">{t('none')}</option>
+                    {[...Array(10)].map((_, i) => (
+                      <option key={i + 1} value={i + 1}>
+                        {i + 1}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </>
+            )}
             <div>
               <label className={labelClass}>{t('firstNameHi')}</label>
               <ReactTransliterate
@@ -229,85 +283,95 @@ export function MemberForm({ editingId }: Props) {
           </div>
         </div>
 
-        {/* Spouse (Optional) */}
-        <div className={sectionClass}>
-          <h2 className={sectionTitle}>{t('spouse')} (Optional)</h2>
-          
-          <div className="mb-4">
-            <label className={labelClass}>{t('selectExisting')} / {t('createNewSpouse')}</label>
-            <select
-              className={inputClass}
-              value={selectedSpouseId}
-              onChange={(e) => setSelectedSpouseId(e.target.value as string | 'new')}
-            >
-              <option value="">{t('none')}</option>
-              <option value="new">+ {t('createNewSpouse')}</option>
-              {parentOptions.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {displayName(p, lang)}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {selectedSpouseId === 'new' && (
-            <>
-              <div className="grid gap-4 sm:grid-cols-2">
-                <div>
-                  <label className={labelClass}>{t('firstNameHi')}</label>
-                  <ReactTransliterate
-                    value={spouseForm.first_name_hi ?? ''}
-                    onChangeText={(text) => updateSpouse('first_name_hi', text)}
-                    lang="hi"
-                    className={inputClass}
-                    containerClassName="w-full"
-                    placeholder="Type in English..."
-                  />
-                </div>
-                <div>
-                  <label className={labelClass}>{t('gender')}</label>
-                  <select className={inputClass} value={spouseForm.gender ?? 'female'} onChange={(e) => updateSpouse('gender', (e.target.value || null) as Gender | null)}>
-                    <option value="male">{t('male')}</option>
-                    <option value="female">{t('female')}</option>
-                    <option value="other">{t('other')}</option>
-                  </select>
-                </div>
-                <div>
-                  <label className={labelClass}>{t('lifeStatus')}</label>
-                  <select className={inputClass} value={spouseForm.life_status} onChange={(e) => updateSpouse('life_status', e.target.value as LifeStatus)}>
-                    <option value="alive">{t('alive')}</option>
-                    <option value="deceased">{t('deceased')}</option>
-                  </select>
-                </div>
-              </div>
-            </>
-          )}
-        </div>
-
-        {/* Relationships */}
-        <div className={sectionClass}>
-          <h2 className={sectionTitle}>{t('familyRelationships')}</h2>
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div>
-              <label className={labelClass}>{t('father')}</label>
-              <select
-                className={inputClass}
-                value={form.father_id ?? ''}
-                onChange={(e) => update('father_id', (e.target.value || null) as string | null)}
-              >
-                <option value="">{t('none')}</option>
-                {parentOptions
-                  .filter((p) => p.gender !== 'female')
-                  .map((p) => (
+        {!isExternalSpouse ? (
+          <>
+            {/* Spouse (Optional) */}
+            <div className={sectionClass}>
+              <h2 className={sectionTitle}>{t('spouse')} (Optional)</h2>
+              
+              <div className="mb-4">
+                <label className={labelClass}>{t('selectExisting')} / {t('createNewSpouse')}</label>
+                <select
+                  className={inputClass}
+                  value={selectedSpouseId}
+                  onChange={(e) => setSelectedSpouseId(e.target.value as string | 'new')}
+                >
+                  <option value="">{t('none')}</option>
+                  <option value="new">+ {t('createNewSpouse')}</option>
+                  {parentOptions.map((p) => (
                     <option key={p.id} value={p.id}>
                       {displayName(p, lang)}
                     </option>
                   ))}
-              </select>
+                </select>
+              </div>
+
+              {selectedSpouseId === 'new' && (
+                <>
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <div>
+                      <label className={labelClass}>{t('firstNameHi')}</label>
+                      <ReactTransliterate
+                        value={spouseForm.first_name_hi ?? ''}
+                        onChangeText={(text) => updateSpouse('first_name_hi', text)}
+                        lang="hi"
+                        className={inputClass}
+                        containerClassName="w-full"
+                        placeholder="Type in English..."
+                      />
+                    </div>
+                    <div>
+                      <label className={labelClass}>{t('gender')}</label>
+                      <select className={inputClass} value={spouseForm.gender ?? 'female'} onChange={(e) => updateSpouse('gender', (e.target.value || null) as Gender | null)}>
+                        <option value="male">{t('male')}</option>
+                        <option value="female">{t('female')}</option>
+                        <option value="other">{t('other')}</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className={labelClass}>{t('lifeStatus')}</label>
+                      <select className={inputClass} value={spouseForm.life_status} onChange={(e) => updateSpouse('life_status', e.target.value as LifeStatus)}>
+                        <option value="alive">{t('alive')}</option>
+                        <option value="deceased">{t('deceased')}</option>
+                      </select>
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
+
+            {/* Relationships */}
+            <div className={sectionClass}>
+              <h2 className={sectionTitle}>{t('familyRelationships')}</h2>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div>
+                  <label className={labelClass}>{t('father')}</label>
+                  <select
+                    className={inputClass}
+                    value={form.father_id ?? ''}
+                    onChange={(e) => update('father_id', (e.target.value || null) as string | null)}
+                  >
+                    <option value="">{t('none')}</option>
+                    {parentOptions
+                      .filter((p) => p.gender !== 'female')
+                      .map((p) => (
+                        <option key={p.id} value={p.id}>
+                          {displayName(p, lang)}
+                        </option>
+                      ))}
+                  </select>
+                </div>
+              </div>
+            </div>
+          </>
+        ) : (
+          <div className={sectionClass}>
+            <h2 className={sectionTitle}>{t('spouse')}</h2>
+            <div className="rounded-lg border border-stone-200 bg-stone-50 px-4 py-3 text-stone-700 font-medium">
+              {mainSpouseName}
             </div>
           </div>
-        </div>
-
+        )}
         {/* Submit */}
         <div className="flex justify-end gap-3">
           <button
