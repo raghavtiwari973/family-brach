@@ -1,5 +1,7 @@
 import dagre from 'dagre';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { toPng } from 'html-to-image';
+import { jsPDF } from 'jspdf';
 import {
   ReactFlow,
   ReactFlowProvider,
@@ -15,8 +17,9 @@ import {
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import { useSearchParams, Link } from 'react-router-dom';
-import { Maximize2, Minimize2, Trees, ChevronRight, User } from 'lucide-react';
+import { Maximize2, Minimize2, Trees, ChevronRight, User, Download } from 'lucide-react';
 import { useI18n } from '@/context/I18nContext';
+import { useAuth } from '@/context/AuthContext';
 import { PersonNode, type PersonNodeData } from '@/components/PersonNode';
 import { getRootAncestor, getPerson, getChildren, getSpouses, getDescendants } from '@/services/family';
 import { displayName, birthYear } from '@/utils/person';
@@ -41,6 +44,7 @@ interface LoadedNode {
 
 function TreeView() {
   const { t, lang } = useI18n();
+  const { session } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
   const { setCenter, getNode } = useReactFlow();
 
@@ -422,6 +426,33 @@ function TreeView() {
     }
   }, []);
 
+  const downloadChart = useCallback(() => {
+    const el = document.querySelector('.react-flow') as HTMLElement;
+    if (!el) return;
+    
+    // Use pixelRatio: 2 for better visibility and high quality
+    toPng(el, {
+      backgroundColor: '#e7e5e4',
+      pixelRatio: 2,
+    }).then((dataUrl) => {
+      // Calculate aspect ratio
+      const img = new Image();
+      img.src = dataUrl;
+      img.onload = () => {
+        const pdf = new jsPDF({
+          orientation: img.width > img.height ? 'landscape' : 'portrait',
+          unit: 'px',
+          format: [img.width, img.height]
+        });
+        
+        pdf.addImage(img, 'PNG', 0, 0, img.width, img.height);
+        pdf.save('family-tree.pdf');
+      };
+    }).catch((err) => {
+      console.error('Failed to download chart', err);
+    });
+  }, []);
+
   const selectedData = useMemo(() => selectedPerson, [selectedPerson]);
 
   return (
@@ -472,13 +503,23 @@ function TreeView() {
           >
             <Background color="#e7e5e4" gap={20} />
             <Controls showInteractive={false} />
-            <Panel position="top-right" className="!bg-white !rounded-lg !shadow-md !border !border-stone-200">
+            <Panel position="top-right" className="!bg-white !rounded-lg !shadow-md !border !border-stone-200 flex flex-col sm:flex-row">
+              {session && (
+                <button
+                  onClick={downloadChart}
+                  className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-stone-700 hover:text-amber-700 border-b sm:border-b-0 sm:border-r border-stone-200"
+                  title={t('downloadChart')}
+                >
+                  <Download className="h-4 w-4" />
+                  <span className="hidden sm:inline">{t('downloadChart')}</span>
+                </button>
+              )}
               <button
                 onClick={toggleFullscreen}
                 className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-stone-700 hover:text-amber-700"
               >
                 {fullscreen ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
-                {fullscreen ? t('exitFullscreen') : t('fullscreen')}
+                <span className="hidden sm:inline">{fullscreen ? t('exitFullscreen') : t('fullscreen')}</span>
               </button>
             </Panel>
           </ReactFlow>

@@ -144,6 +144,8 @@ export const translations = {
     selectLanguage: 'Select Language',
     maleIcon: 'Male',
     femaleIcon: 'Female',
+    downloadApp: 'Download App',
+    downloadChart: 'Download Chart',
   },
   hi: {
     appName: 'परिवार वंश वृक्ष',
@@ -288,6 +290,8 @@ export const translations = {
     selectLanguage: 'भाषा चुनें',
     maleIcon: 'पुरुष',
     femaleIcon: 'महिला',
+    downloadApp: 'ऐप डाउनलोड करें',
+    downloadChart: 'चार्ट डाउनलोड करें',
   },
 } as const;
 
