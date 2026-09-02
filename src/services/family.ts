@@ -116,7 +116,7 @@ export async function getDescendants(personId: string, maxDepth = 100): Promise<
   return ids.map((r: { id: string; depth: number }) => ({
     person: byId.get(r.id),
     depth: r.depth,
-  })).filter((r) => r.person) as { person: Person; depth: number }[];
+  })).filter((r: any) => r.person) as { person: Person; depth: number }[];
 }
 
 export async function getAncestors(personId: string, maxDepth = 100): Promise<{ person: Person; depth: number }[]> {
@@ -138,7 +138,7 @@ export async function getAncestors(personId: string, maxDepth = 100): Promise<{ 
   return ids.map((r: { id: string; depth: number }) => ({
     person: byId.get(r.id),
     depth: r.depth,
-  })).filter((r) => r.person) as { person: Person; depth: number }[];
+  })).filter((r: any) => r.person) as { person: Person; depth: number }[];
 }
 
 export async function createPerson(input: PersonInput): Promise<Person> {

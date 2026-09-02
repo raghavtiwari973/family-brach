@@ -27,6 +27,8 @@ export interface Person {
   branch_status: BranchStatus;
   child_type: 'putr' | 'putri' | null;
   children_count: number | null;
+  x_pos: number | null;
+  y_pos: number | null;
   created_at: string;
   updated_at: string;
 }
@@ -71,4 +73,6 @@ export interface PersonInput {
   branch_status?: BranchStatus;
   child_type?: 'putr' | 'putri' | null;
   children_count?: number | null;
+  x_pos?: number | null;
+  y_pos?: number | null;
 }

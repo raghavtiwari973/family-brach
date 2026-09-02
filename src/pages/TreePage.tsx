@@ -17,11 +17,11 @@ import {
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import { useSearchParams, Link } from 'react-router-dom';
-import { Maximize2, Minimize2, Trees, ChevronRight, User, Download } from 'lucide-react';
+import { Maximize2, Minimize2, Trees, ChevronRight, User, Download, Undo2, Redo2 } from 'lucide-react';
 import { useI18n } from '@/context/I18nContext';
 import { useAuth } from '@/context/AuthContext';
 import { PersonNode, type PersonNodeData } from '@/components/PersonNode';
-import { getRootAncestor, getPerson, getChildren, getSpouses, getDescendants } from '@/services/family';
+import { getRootAncestor, getPerson, getChildren, getSpouses, getDescendants, updatePerson } from '@/services/family';
 import { displayName, birthYear } from '@/utils/person';
 import type { Person } from '@/types';
 
@@ -57,6 +57,10 @@ function TreeView() {
   const [fullscreen, setFullscreen] = useState(false);
   const [focusedId, setFocusedId] = useState<string | null>(null);
 
+  const [undoStack, setUndoStack] = useState<{ id: string, prevX: number, prevY: number, newX: number, newY: number }[]>([]);
+  const [redoStack, setRedoStack] = useState<{ id: string, prevX: number, prevY: number, newX: number, newY: number }[]>([]);
+  const dragStartPositions = useRef<Record<string, {x: number, y: number}>>({});
+
   const loadedRef = useRef<Map<string, LoadedNode>>(new Map());
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -66,6 +70,79 @@ function TreeView() {
     setSelectedId(id);
     const ln = loadedRef.current.get(id);
     if (ln) setSelectedPerson(ln.person);
+  }, []);
+
+  const onNodeDragStart = useCallback((_event: any, node: any) => {
+    dragStartPositions.current[node.id] = { x: node.position.x, y: node.position.y };
+  }, []);
+
+  const onNodeDragStop = useCallback(
+    async (_event: any, node: any) => {
+      if (!session) return;
+      try {
+        const newX = Math.round(node.position.x);
+        const newY = Math.round(node.position.y);
+        
+        const oldPos = dragStartPositions.current[node.id];
+        if (oldPos && (oldPos.x !== newX || oldPos.y !== newY)) {
+          setUndoStack((prev) => [...prev, { id: node.id, prevX: oldPos.x, prevY: oldPos.y, newX, newY }]);
+          setRedoStack([]);
+        }
+
+        await updatePerson(node.id, { x_pos: newX, y_pos: newY });
+        const ln = loadedRef.current.get(node.id);
+        if (ln) {
+          ln.person.x_pos = newX;
+          ln.person.y_pos = newY;
+        }
+      } catch (err) {
+        console.error('Failed to save node position', err);
+      }
+    },
+    [session]
+  );
+
+  const handleUndo = useCallback(async () => {
+    if (undoStack.length === 0) return;
+    const action = undoStack[undoStack.length - 1];
+    setUndoStack(prev => prev.slice(0, -1));
+    setRedoStack(prev => [...prev, action]);
+
+    setNodes(nds => nds.map(n => n.id === action.id ? { ...n, position: { x: action.prevX, y: action.prevY } } : n));
+    const ln = loadedRef.current.get(action.id);
+    if (ln) {
+      ln.person.x_pos = action.prevX;
+      ln.person.y_pos = action.prevY;
+    }
+    await updatePerson(action.id, { x_pos: action.prevX, y_pos: action.prevY }).catch(console.error);
+  }, [undoStack, setNodes]);
+
+  const handleRedo = useCallback(async () => {
+    if (redoStack.length === 0) return;
+    const action = redoStack[redoStack.length - 1];
+    setRedoStack(prev => prev.slice(0, -1));
+    setUndoStack(prev => [...prev, action]);
+
+    setNodes(nds => nds.map(n => n.id === action.id ? { ...n, position: { x: action.newX, y: action.newY } } : n));
+    const ln = loadedRef.current.get(action.id);
+    if (ln) {
+      ln.person.x_pos = action.newX;
+      ln.person.y_pos = action.newY;
+    }
+    await updatePerson(action.id, { x_pos: action.newX, y_pos: action.newY }).catch(console.error);
+  }, [redoStack, setNodes]);
+
+  const initialViewport = useMemo(() => {
+    try {
+      const v = localStorage.getItem('treeViewport');
+      return v ? JSON.parse(v) : null;
+    } catch {
+      return null;
+    }
+  }, []);
+
+  const onMoveEnd = useCallback((_event: any, viewport: any) => {
+    localStorage.setItem('treeViewport', JSON.stringify(viewport));
   }, []);
 
   const handleToggleChildren = useCallback(
@@ -136,7 +213,7 @@ function TreeView() {
     }
 
     const g = new dagre.graphlib.Graph();
-    g.setGraph({ rankdir: 'BT', nodesep: 120, ranksep: 160 });
+    g.setGraph({ rankdir: 'BT', nodesep: 40, ranksep: 120 });
     g.setDefaultEdgeLabel(() => ({}));
 
     // Add nodes to dagre
@@ -195,6 +272,12 @@ function TreeView() {
       const dNode = g.node(id);
       ln.x = dNode.x - dNode.width / 2 + NODE_W / 2;
       ln.y = dNode.y - dNode.height / 2;
+
+      // Use saved positions if they exist
+      if (ln.person.x_pos != null && ln.person.y_pos != null) {
+        ln.x = ln.person.x_pos;
+        ln.y = ln.person.y_pos;
+      }
 
       newNodes.push({
         id: ln.person.id,
@@ -497,8 +580,14 @@ function TreeView() {
             edges={edges}
             onNodesChange={onNodesChange}
             onEdgesChange={onEdgesChange}
+            onNodeDragStart={onNodeDragStart}
+            onNodeDragStop={onNodeDragStop}
+            onMoveEnd={onMoveEnd}
             nodeTypes={nodeTypes}
-            fitView
+            nodesDraggable={!!session}
+            nodesConnectable={false}
+            defaultViewport={initialViewport || { x: 0, y: 0, zoom: 1 }}
+            fitView={!initialViewport && !focusId}
             minZoom={0.1}
             maxZoom={2}
             defaultEdgeOptions={{ type: 'smoothstep' }}
@@ -508,14 +597,34 @@ function TreeView() {
             <Controls showInteractive={false} />
             <Panel position="top-right" className="!bg-white !rounded-lg !shadow-md !border !border-stone-200 flex flex-col sm:flex-row">
               {session && (
-                <button
-                  onClick={downloadChart}
-                  className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-stone-700 hover:text-amber-700 border-b sm:border-b-0 sm:border-r border-stone-200"
-                  title={t('downloadChart')}
-                >
-                  <Download className="h-4 w-4" />
-                  <span className="hidden sm:inline">{t('downloadChart')}</span>
-                </button>
+                <>
+                  <button
+                    disabled={undoStack.length === 0}
+                    onClick={handleUndo}
+                    className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-stone-700 hover:text-amber-700 disabled:opacity-50 border-b sm:border-b-0 sm:border-r border-stone-200"
+                    title="Undo"
+                  >
+                    <Undo2 className="h-4 w-4" />
+                    <span className="hidden sm:inline">Undo</span>
+                  </button>
+                  <button
+                    disabled={redoStack.length === 0}
+                    onClick={handleRedo}
+                    className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-stone-700 hover:text-amber-700 disabled:opacity-50 border-b sm:border-b-0 sm:border-r border-stone-200"
+                    title="Redo"
+                  >
+                    <Redo2 className="h-4 w-4" />
+                    <span className="hidden sm:inline">Redo</span>
+                  </button>
+                  <button
+                    onClick={downloadChart}
+                    className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-stone-700 hover:text-amber-700 border-b sm:border-b-0 sm:border-r border-stone-200"
+                    title={t('downloadChart')}
+                  >
+                    <Download className="h-4 w-4" />
+                    <span className="hidden sm:inline">{t('downloadChart')}</span>
+                  </button>
+                </>
               )}
               <button
                 onClick={toggleFullscreen}
